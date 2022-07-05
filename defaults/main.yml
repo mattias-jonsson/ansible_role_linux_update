@@ -1,0 +1,22 @@
+---
+
+ansible_role_linux_update_patchwindow: true
+ansible_role_linux_update_patchwindow_dow:
+ansible_role_linux_update_patchwindow_nth_day:
+ansible_role_linux_update_patchwindow_time:
+ansible_role_linux_update_pre_tasks: []
+ansible_role_linux_update_post_tasks: []
+ansible_role_linux_update_categories: []
+ansible_role_linux_update_automatic_reboot: false
+ansible_role_linux_update_automatic_reboot_for_services: false
+ansible_role_linux_update_webhook_msteams: 
+ansible_role_linux_update_smtp_server:
+ansible_role_linux_update_smtp_port:
+ansible_role_linux_update_mail_to:
+ansible_role_linux_update_mail_from:
+ansible_role_linux_update_create_report: false
+ansible_role_linux_update_omit_report_if_no_updates: false
+ansible_role_linux_update_handle_snapshot: false
+ansible_role_linux_update_mode:
+ansible_role_linux_update_reporting_path: './linux_update_reports/{{ ansible_date_time.date }}'
+ansible_role_linux_update_send_email_report: false

@@ -1,0 +1,18 @@
+---
+- name: update fact with loop index
+  set_fact:
+    ansible_role_linux_update_post_command_index: '{{ ansible_role_linux_update_loop_index }}'
+
+- name: run post update shell-commands on Linux
+  become: yes
+  become_user: "{{ item.user | default('root') }}"
+  ansible.builtin.shell: 
+    cmd: '{{ item.command }}'
+    executable: '{{ item.executable | default(omit) }}'
+    creates: '{{ item.creates | default(omit) }}'
+    removes: '{{ item.removes | default(omit) }}'
+    chdir: '{{ item.chdir | default(omit) }}'
+  args:
+    warn: false # disable warnings when running some commands
+  when: ansible_system == 'Linux'
+  register: ansible_role_linux_update_post_command_result

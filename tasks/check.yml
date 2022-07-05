@@ -1,0 +1,124 @@
+---
+
+- name: check update block
+  block:
+
+    - name: block for RedHat/Fedora
+      block:
+
+        - name: build list of available updates on RedHat/Fedora
+          become: true
+          ansible.builtin.shell: yum -q list updates {{ ansible_role_linux_update_categories_parameters | join(' ') if ansible_role_linux_update_categories_parameters is defined }} | tail -n +2 | xargs -n3 | column -t | awk '{print $1","$2}' | sed -n 's/\(.*\)\.[a-z].*,\([0-9]\+:\)*\(.*\)$/\1,\3/p'
+          args:
+            warn: false
+          changed_when: false
+          register: ansible_role_linux_update_updates_stdout
+        
+        - name: create dict of available updates from stdout on RedHat/Fedora
+          ansible.builtin.set_fact:
+            ansible_role_linux_update_updates_dict: "{{ ansible_role_linux_update_updates_dict |default({}) | combine ( { item.split(',')[0]: item.split(',')[1] } ) }}"
+          with_items:
+            - "{{ ansible_role_linux_update_updates_stdout.stdout_lines }}"
+
+      when: ansible_distribution == "Fedora" or ansible_distribution == "RedHat"
+
+
+    - name: block for CentOS
+      block:
+
+        - name: build list of available updates on CentOS
+          become: true
+          ansible.builtin.shell: yum -q list updates | tail -n +2 | xargs -n3 | column -t | awk '{print $1","$2}' | sed -n 's/\(.*\)\.[a-z].*,\([0-9]\+:\)*\(.*\)$/\1,\3/p'
+          args:
+            warn: false
+          changed_when: false
+          register: ansible_role_linux_update_updates_stdout
+
+        - name: create dict of available updates from stdout on CentOS
+          ansible.builtin.set_fact:
+            ansible_role_linux_update_updates_dict: "{{ ansible_role_linux_update_updates_dict |default({}) | combine ( { item.split(',')[0]: item.split(',')[1] } ) }}"
+          with_items:
+            - "{{ ansible_role_linux_update_updates_stdout.stdout_lines }}"
+
+      when: ansible_distribution =="CentOS"
+
+
+    - name: block for Debian
+      block:
+
+        - name: build list of available security updates on Debian
+          become: true
+          ansible.builtin.shell: apt-get dist-upgrade --dry-run -d 2>/dev/null | sed -n 's/^Inst \(\S*\)\( \[\S*\]\)* (\(\S*\) \(.*\)*Debian-Security.*/\1,\3/p'
+          args:
+            warn: false
+          changed_when: false
+          register: ansible_role_linux_update_updates_stdout
+          when: ansible_role_linux_update_categories | lower == "security"
+
+        - name: create dict of available security updates from stdout on Debian
+          ansible.builtin.set_fact:
+            ansible_role_linux_update_updates_dict: "{{ ansible_role_linux_update_updates_dict |default({}) | combine ( { item.split(',')[0]: item.split(',')[1] } ) }}"
+          with_items:
+            - "{{ ansible_role_linux_update_updates_stdout.stdout_lines }}"
+          when: ansible_role_linux_update_categories | lower == "security"
+
+        - name: build list of available updates on Debian
+          become: true
+          ansible.builtin.shell: apt-get dist-upgrade --dry-run -d 2>/dev/null | grep "^Inst" | sed -n 's/^Inst \(\S*\)\( \[\S*\]\)* (\(\S*\) .*/\1,\3/p'
+          args:
+            warn: false
+          changed_when: false
+          register: ansible_role_linux_update_updates_stdout
+          when: ansible_role_linux_update_categories | lower != "security"
+
+        - name: create dict of available updates from stdout on Debian
+          ansible.builtin.set_fact:
+            ansible_role_linux_update_updates_dict: "{{ ansible_role_linux_update_updates_dict |default({}) | combine ( { item.split(',')[0]: item.split(',')[1] } ) }}"
+          with_items:
+            - "{{ ansible_role_linux_update_updates_stdout.stdout_lines }}"
+          when: ansible_role_linux_update_categories | lower != "security"
+
+      when: ansible_distribution == "Debian"
+
+
+    - name: block for Ubuntu
+      block:
+
+        - name: build list of available security updates on Ubuntu
+          become: true
+          ansible.builtin.shell: apt-get dist-upgrade --dry-run -d 2>/dev/null | sed -n 's/^Inst \(\S*\)\( \[\S*\]\)* (\(\S*\)\(.*\)* Ubuntu\:\S\+-security .*/\1,\3/p'
+          args:
+            warn: false
+          changed_when: false
+          register: ansible_role_linux_update_updates_stdout
+          when: ansible_role_linux_update_categories | lower == "security"
+
+        - name: create dict of available security updates from stdout on Ubuntu
+          ansible.builtin.set_fact:
+            ansible_role_linux_update_updates_dict: "{{ ansible_role_linux_update_updates_dict |default({}) | combine ( { item.split(',')[0]: item.split(',')[1] } ) }}"
+          with_items:
+            - "{{ ansible_role_linux_update_updates_stdout.stdout_lines }}"
+          when: ansible_role_linux_update_categories | lower == "security"
+
+        - name: build list of available updates on Ubuntu
+          become: true
+          ansible.builtin.shell: apt-get dist-upgrade --dry-run -d 2>/dev/null  | sed -n 's/^Inst \(\S*\)\( \[\S*\]\)* (\(\S*\) .*/\1,\3/p'
+          args:
+            warn: false
+          changed_when: false
+          register: ansible_role_linux_update_updates_stdout
+          when: ansible_role_linux_update_categories | lower != "security"
+
+        - name: create dict of available updates from stdout on Ubuntu
+          ansible.builtin.set_fact:
+            ansible_role_linux_update_updates_dict: "{{ ansible_role_linux_update_updates_dict |default({}) | combine ( { item.split(',')[0]: item.split(',')[1] } ) }}"
+          with_items:
+            - "{{ ansible_role_linux_update_updates_stdout.stdout_lines }}"
+          when: ansible_role_linux_update_categories | lower != "security"
+
+      when: ansible_distribution == "Ubuntu"
+
+
+- name: set updatecount fact
+  ansible.builtin.set_fact: 
+    ansible_role_linux_update_updatecount: "{{ ansible_role_linux_update_updates_dict | dict2items | length if ansible_role_linux_update_updates_dict is defined else '0' }}"

@@ -1,0 +1,28 @@
+---
+
+collections:
+  - name: community.general.mail
+
+galaxy_info:
+  author: Mattias Jonsson
+  description: An Ansible role that handles installation of updates on supported distributions.
+  min_ansible_version: 2.9.27
+  role_name: ansible_role_linux_update
+  license: MIT
+  platforms:
+  - name: EL
+    versions:
+    - "7"
+    - "8"
+  - name: Fedora
+    versions:
+    - "34"
+  - name: Debian
+    versions:
+    - buster
+    - bullseye
+  - name: Ubuntu
+    versions:
+    - bionic
+    - focal
+    - jammy

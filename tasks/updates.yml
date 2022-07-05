@@ -1,0 +1,164 @@
+---
+
+- name: pre update tasks
+  include_tasks:
+    file: 'pre_{{ item.type }}.yml'
+  loop: '{{ ansible_role_linux_update_pre_tasks }}'
+  loop_control:
+    index_var: ansible_role_linux_update_loop_index
+  register: ansible_role_linux_update_pre_tasks_result
+  when: ansible_role_linux_update_mode | lower == "update" and ansible_role_linux_update_updatecount | int > 0 and ansible_role_linux_update_pre_tasks is defined
+
+
+- name: update block
+  block:
+
+
+  - name: block for RedHat/Fedora
+    block:
+
+      - name: Install updated packages on RedHat/Fedora
+        become: true
+        ansible.builtin.shell: "yum -q -y update {{ ansible_role_linux_update_updates_dict.keys() | zip(ansible_role_linux_update_updates_dict.values()) | map('join', '-') | list  | join(' ') }}"
+        register: ansible_role_linux_update_package_installation
+
+      - name: set boolean for if updates has been installed or not
+        ansible.builtin.set_fact:
+          ansible_role_linux_update_installed_updates: "{{ ansible_role_linux_update_package_installation.changed }}"
+
+    when: 
+      - ansible_distribution == "Fedora" or ansible_distribution == "RedHat"
+      - ansible_role_linux_update_updates_dict is defined and ansible_role_linux_update_updates_dict | length > 0 
+
+
+  - name: block for CentOS
+    block:
+
+      - name: Install updated packages on CentOS
+        become: true
+        ansible.builtin.shell: "yum -q -y update {{ ansible_role_linux_update_updates_dict.keys() | zip(ansible_role_linux_update_updates_dict.values()) | map('join', '-') | list  | join(' ') }}"
+        register: ansible_role_linux_update_package_installation
+
+      - name: set boolean for if updates has been installed or not
+        ansible.builtin.set_fact:
+          ansible_role_linux_update_installed_updates: "{{ ansible_role_linux_update_package_installation.changed }}"
+
+    when: 
+      - ansible_distribution =="CentOS"
+      - ansible_role_linux_update_updates_dict is defined and ansible_role_linux_update_updates_dict | length > 0 
+
+
+  - name: block for Debian
+    block:
+
+      - name: install updates packages on Debian
+        become: true
+        apt:
+          name: "{{ ansible_role_linux_update_updates_dict.keys() | zip(ansible_role_linux_update_updates_dict.values()) | map('join', '=') | list }}"
+        register: ansible_role_linux_update_package_installation
+        when: ansible_role_linux_update_updates_dict is defined and ansible_role_linux_update_updates_dict | length > 0
+
+      - name: set boolean for if updates has been installed or not
+        ansible.builtin.set_fact:
+          ansible_role_linux_update_installed_updates: "{{ ansible_role_linux_update_package_installation.changed }}"
+
+    when: ansible_distribution == "Debian"
+
+
+  - name: block for Ubuntu
+    block:
+
+      - name: install updated packages on Ubuntu
+        become: true
+        ansible.builtin.apt:
+          name: "{{ ansible_role_linux_update_updates_dict.keys() | zip(ansible_role_linux_update_updates_dict.values()) | map('join', '=') | list }}"
+        register: ansible_role_linux_update_package_installation
+        when: ansible_role_linux_update_updates_dict is defined and ansible_role_linux_update_updates_dict | length > 0
+
+      - name: set boolean for if updates has been installed or not
+        ansible.builtin.set_fact:
+          ansible_role_linux_update_installed_updates: "{{ ansible_role_linux_update_package_installation.changed }}"
+
+    when: ansible_distribution == "Ubuntu"
+
+  when: ansible_role_linux_update_updatecount | int > 0
+
+
+- name: check reboot
+  block:
+
+    - name: reboot handling block for RedHat/Fedora/CentOS
+      block:
+
+        - name: check if OS needs reboot on RedHat/Fedora/CentOS
+          become: true
+          ansible.builtin.command: "{{ ansible_role_linux_update_checkrestart_sys }}"
+          register: ansible_role_linux_update_need_reboot_stdout
+          changed_when: false
+          failed_when: ansible_role_linux_update_need_reboot_stdout.rc not in [ 0, 1 ]
+
+        - name: set reboot to true on RedHat/Fedora/CentOS
+          ansible.builtin.set_fact:
+            ansible_role_linux_update_need_reboot: "{{ 'true' if ansible_role_linux_update_need_reboot_stdout.rc == 1 else 'false' }}"
+
+      when: ansible_os_family == "RedHat"
+
+
+    - name: reboot handling block for Debian/Ubuntu
+      block:
+
+        - name: check if /var/run/reboot-required exists on Debian/Ubuntu
+          become: true
+          ansible.builtin.stat:
+            path: /var/run/reboot-required
+          changed_when: false
+          register: ansible_role_linux_update_need_reboot_stat
+
+        - name: set reboot to true on Debian/Ubuntu
+          ansible.builtin.set_fact:
+            ansible_role_linux_update_need_reboot: "{{ 'true' if ansible_role_linux_update_need_reboot_stat.stat.exists else 'false' }}"
+
+      when: ansible_os_family == "Debian"
+
+
+- name: check what services needs restarting
+  become: true
+  ansible.builtin.shell: "{{ ansible_role_linux_update_checkrestart_svc }}"
+  register: ansible_role_linux_update_servicerestart_stdout
+  changed_when: false
+  failed_when: ansible_role_linux_update_servicerestart_stdout.rc not in [ 0, 1 ]
+
+- name: set fact of services needing restart
+  ansible.builtin.set_fact:
+    ansible_role_linux_update_services_needing_restart: '{{ ansible_role_linux_update_servicerestart_stdout }}'
+
+
+- name: reboot handling
+  block:
+
+    - name: issue a reboot
+      become: true
+      ansible.builtin.command: shutdown -r now "Ansible issued reboot."
+      async: 30
+      poll: 0
+      register: ansible_role_linux_update_need_reboot_restarted
+
+    - name: Wait for connection after reboot
+      ansible.builtin.wait_for_connection:
+        connect_timeout: 20
+        sleep: 5
+        delay: 5
+        timeout: 300
+      when: ansible_role_linux_update_need_reboot_restarted.changed
+
+  when: (ansible_role_linux_update_need_reboot | bool and ansible_role_linux_update_automatic_reboot | bool and (ansible_role_linux_update_installed_updates is defined and ansible_role_linux_update_installed_updates | bool)) or (ansible_role_linux_update_services_needing_restart.stdout_lines | length > 0 and ansible_role_linux_update_automatic_reboot_for_services | bool and (ansible_role_linux_update_installed_updates is defined and ansible_role_linux_update_installed_updates | bool))
+
+
+- name: post update tasks
+  include_tasks:
+    file: 'post_{{ item.type }}.yml'
+  loop: '{{ ansible_role_linux_update_post_tasks }}'
+  loop_control:
+    index_var: ansible_role_linux_update_loop_index
+  register: ansible_role_linux_update_post_tasks_result
+  when: ansible_role_linux_update_mode | lower == "update" and ansible_role_linux_update_updatecount | int > 0 and ansible_role_linux_update_post_tasks is defined

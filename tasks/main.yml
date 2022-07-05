@@ -1,0 +1,126 @@
+---
+
+- name: run install tasks
+  block:
+  
+    - name: Include variables specific for the distribution.
+      include_vars: "{{ item }}"
+      with_items:
+        - "{{ ansible_distribution }}-{{ ansible_distribution_major_version }}.yml"
+
+    - name: get Red Hat subscription details
+      become: True
+      shell: subscription-manager list --consumed | sed -n 's/^Status Details:\s*\(Subscription is current\)$/\1/p'
+      register: rhel_subscription_check
+      changed_when: false
+      when: ansible_distribution == "RedHat"
+
+    - name: Assert block
+      block:
+
+        - name: assert that ansible_role_linux_update_categories are valid
+          ansible.builtin.assert:
+            that: 
+              - "{{ ansible_role_linux_update_categories | difference(ansible_role_linux_update_valid_categories) | length == 0 }}"
+            fail_msg: "invalid category specified in ansible_role_linux_update_categories"
+
+        - name: assert that Red Hat subscription is current
+          ansible.builtin.assert:
+            that: 
+              - rhel_subscription_check.stdout == "Subscription is current"
+          when: ansible_distribution == "RedHat"
+
+
+    - name: set os version as a fact
+      set_fact:
+        ansible_role_linux_update_distribution_version_pre_update: '{{ ansible_distribution_version }}'
+
+    - name: set start time as fact
+      set_fact: 
+        ansible_role_linux_update_starttime: "{{ lookup('pipe','date +%Y-%m-%d_%H:%M:%S') | replace('_',' ') }}"
+      delegate_to: localhost
+
+    - name: generate unique Updatesession ID for reports
+      ansible.builtin.set_fact:
+        ansible_role_linux_update_id: "{{ lookup('password', '/dev/null chars=ascii_letters,digits') | to_uuid }}"
+
+    - name: print session ID
+      ansible.builtin.debug:
+        msg: '{{ ansible_role_linux_update_id }}'
+      changed_when: false
+
+
+    - name: parameters block
+      block:
+
+        - name: set parameters fact
+          ansible.builtin.set_fact:
+            ansible_role_linux_update_categories_parameters: "{{ ansible_role_linux_update_categories_parameters | default([]) + [''.join(('--',item ))] }}"
+          loop: '{{ ansible_role_linux_update_categories | list }}'
+
+      when: ansible_role_linux_update_categories | length > 0
+
+
+    - name: wait for blocking processes
+      become: true
+      ansible.builtin.shell: |
+        if lslocks -no PATH | grep -qE '{{ ansible_role_linux_update_blockingproc_list | join('|') }}'; then exit 1; else exit 0; fi
+      register: ansible_role_linux_update_blockingproc
+      until: ansible_role_linux_update_blockingproc.rc == 0
+      retries: 30
+      delay: 10
+      failed_when: ansible_role_linux_update_blockingproc.rc != 0
+      changed_when: false
+
+    - include_tasks: requirements.yml
+
+    - include_tasks: check.yml
+
+    - name: include snapshot role if variable is set and create a vSphere snapshot
+      include_role:
+        name: ansible_role_vsphere_snapshot
+      vars:
+        ansible_role_vsphere_snapshot_action: create
+      when: 
+        - ansible_role_linux_update_updatecount | int > 0
+        - ansible_role_linux_update_snapshot.type is defined and ansible_role_linux_update_snapshot.type | lower == 'vsphere'
+        - ansible_role_linux_update_snapshot.create_snapshot | bool
+        - ansible_role_linux_update_mode == 'update'
+
+    - include_tasks: updates.yml
+      when: ansible_role_linux_update_mode == 'update' 
+
+      # this is the error!!!??????
+    - name: include snapshot role if variable is set and remove a snapshot on successful update
+      include_role:
+        name: ansible_role_vsphere_snapshot
+      vars:
+        ansible_role_vsphere_snapshot_action: remove
+      when: ansible_role_vsphere_snapshot_name is defined and ansible_role_linux_update_snapshot.remove_on_success | bool and ansible_role_linux_update_installed_updates is defined and ansible_role_linux_update_updates_dict | length > 0
+
+    - include_tasks: reporting.yml
+      when: ansible_role_linux_update_mode == 'update' 
+
+  when:
+    # what even is a day?
+    - (ansible_role_linux_update_patchwindow | bool and lookup('pipe', 'date --date=' + ansible_role_linux_update_patchwindow_dow + ' +%u') == lookup('pipe', 'date +%u')) or not ansible_role_linux_update_patchwindow | bool
+    # over lower limit
+    - (ansible_role_linux_update_patchwindow | bool and lookup('pipe', 'date --date=' + ansible_role_linux_update_patchwindow_dow + ' +%d') | int >= (ansible_role_linux_update_patchwindow_nth_day | int - 1) * 7) or not ansible_role_linux_update_patchwindow | bool
+    # below upper limit
+    - (ansible_role_linux_update_patchwindow | bool and lookup('pipe', 'date --date=' + ansible_role_linux_update_patchwindow_dow + ' +%d') | int <= ansible_role_linux_update_patchwindow_nth_day | int * 7 + 1) or not ansible_role_linux_update_patchwindow | bool
+    # is it within ansible_role_linux_update_patchwindow_time?
+    - (ansible_role_linux_update_patchwindow | bool and (lookup('pipe', 'date +%s') | int > lookup('pipe', 'date +%s --date=' + ansible_role_linux_update_patchwindow_time.split('-')[0]) | int) and (lookup('pipe', 'date +%s') | int < lookup('pipe', 'date +%s --date=' + ansible_role_linux_update_patchwindow_time.split('-')[1]) | int)) or not ansible_role_linux_update_patchwindow | bool
+
+  # execute the following tasks if we fail 
+  rescue:
+
+    - name: include snapshot role if variable is set and revert a snapshot
+      include_role:
+        name: ansible_role_vsphere_snapshot
+      vars:
+        ansible_role_vsphere_snapshot_action: revert
+      when: 
+        - ansible_role_vsphere_snapshot_name is defined
+        - ansible_role_linux_update_snapshot.revert_on_failure | bool
+
+    - include_tasks: reporting.yml

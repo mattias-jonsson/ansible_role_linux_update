@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html>
+	<head>
+	<style>
+	</style>
+	</head>
+	<body>
+		<table style="border-collapse: collapse; width: auto; border-style: hidden;" border="1">
+		<tbody>
+		<tr>
+		<td style="width: 100%; border-style: hidden; text-align: left; vertical-align: middle;"><img src="{{ role_path }}/files/UpdateAutomation_smaller_{{ ansible_distribution }}.png" alt="" width="948" height="440" /></td>
+		</tr>
+		</tbody>
+		</table>
+		<p>&nbsp;</p>
+		<table style="border-collapse: collapse; width: 100%; margin-left: 2em;" border="1">
+		<tbody>
+		<tr>
+		<td style="width: 100%; border-style: hidden;font-family: Arial, Helvetica, sans-serif;">
+		<h2>Overview</h2>
+		</td>
+		</tr>
+		<tr>
+
+		<td style="width: 100%; border-style: hidden;font-family: Arial, Helvetica, sans-serif;">
+		<strong>Hostname:</strong> {{ inventory_hostname }}<br />
+		<strong>Operating system:</strong> {{ ansible_distribution }} {{ ansible_role_linux_update_distribution_version_post_update }} {% if ansible_role_linux_update_distribution_version_post_update != ansible_role_linux_update_distribution_version_pre_update %}(upgraded from: {{ ansible_role_linux_update_distribution_version_pre_update }}){% endif %}<br />
+		<strong>Report created:</strong> {{ ansible_role_linux_update_stoptime }}<br />
+		<strong>Patch Event ID:</strong> {{ ansible_role_linux_update_id }}<br />
+		<strong>Update categories:</strong> {% if ansible_role_linux_update_categories | length %}{{ ansible_role_linux_update_categories | join(',')}}{% else %}No categories selected.{% endif %}<br />
+		<strong>System uptime:</strong> {{ ansible_role_linux_update_uptime.stdout }}{% if ansible_role_linux_update_need_reboot_restarted is defined and ansible_role_linux_update_need_reboot_restarted.changed | bool  %} (automatic reboot was performed){% endif %}<br />
+		<strong>Elapsed time:</strong> {{ ((((ansible_role_linux_update_stoptime| to_datetime).strftime('%s') | int ) - ((ansible_role_linux_update_starttime | to_datetime).strftime('%s') | int ))  / 60) | round(1,'common')}} minutes (started at {{ ansible_role_linux_update_starttime }} and ended at {{ ansible_role_linux_update_stoptime }}).<br />
+
+		{% if ansible_role_linux_update_updates_dict is defined and ansible_role_linux_update_updates_dict | length | int > 0 %}
+			<strong>Performed tasks:</strong>
+			<ul>
+
+			1 check-update task was performed.<br />
+			{% if ansible_role_vsphere_snapshot_operations is defined %}
+				{{ ansible_role_vsphere_snapshot_operations | count }} VM snapshot operations ({{ ansible_role_vsphere_snapshot_operations | join(', ') }}).<br />
+			{% endif %}
+
+			{% if ansible_failed_task.name is defined and ansible_role_linux_update_pre_command_index is defined and 'run pre update ' is in ansible_failed_task.name %}
+				{% if ansible_role_linux_update_pre_command_index is defined and ansible_role_linux_update_pre_command_index | int + 1 > 1 %}
+					{{ ansible_role_linux_update_pre_command_index }} of {{ ansible_role_linux_update_pre_tasks | length }} pre-update tasks was performed, execution failed at task {{ ansible_role_linux_update_pre_command_index | int + 1 }}.<br />
+				{% else %}
+					0 of {{ ansible_role_linux_update_pre_tasks | length }} pre-update tasks was performed, execution failed at task {{ ansible_role_linux_update_pre_command_index | int + 1 }}.<br />
+				{% endif %}
+			{% else %}
+				{% if ansible_role_linux_update_pre_command_index is defined %}
+					{{ ansible_role_linux_update_pre_command_index | int + 1 }} of {{ ansible_role_linux_update_pre_tasks | length }} pre-update tasks was performed.<br />
+				{% endif %}
+			{% endif %}
+
+			{% if ansible_role_linux_update_installed_updates is defined and ansible_role_linux_update_installed_updates | bool and ansible_role_linux_update_updatecount | int > 0 %}
+				1 update task was performed ({{ ansible_role_linux_update_updates_dict | length }} updates installed).<br />
+			{% endif %}
+
+			{% if ansible_failed_task.name is defined and ansible_role_linux_update_post_command_index is defined and 'run post update ' is in ansible_failed_task.name %}
+				{% if ansible_role_linux_update_post_command_index is defined and ansible_role_linux_update_post_command_index | int + 1 > 1 %}
+					{{ ansible_role_linux_update_post_command_index }} of {{ ansible_role_linux_update_post_tasks | length }} post-update tasks was performed, execution failed at task {{ ansible_role_linux_update_post_command_index | int + 1 }}.<br />
+				{% else %}
+					0 of {{ ansible_role_linux_update_post_tasks | length }} post-update tasks was performed, execution failed at task {{ ansible_role_linux_update_post_command_index | int + 1 }}.<br />
+				{% endif %}
+			{% else %}
+				{% if ansible_role_linux_update_post_command_index is defined %}
+					{{ ansible_role_linux_update_post_command_index | int + 1 }} of {{ ansible_role_linux_update_post_tasks | length }} post-update tasks was performed.<br />
+				{% endif %}
+			{% endif %}
+
+			</ul>
+		{% else %}
+			<strong>Performed tasks:</strong>
+			<ul>
+			1 check-update task was performed, no updates was found.<br />
+			</ul>
+		{% endif %}
+
+		{% if (ansible_role_linux_update_need_reboot is defined and ansible_role_linux_update_need_reboot | bool and not ansible_role_linux_update_need_reboot_restarted.changed | bool) or (ansible_role_linux_update_servicerestart_stdout.rc is defined and ansible_role_linux_update_servicerestart_stdout.stdout_lines | length > 0) %}
+			<strong>Warnings:</strong><br />
+		{% endif %}
+		<ul>
+		{% if ansible_role_linux_update_need_reboot is defined and ansible_role_linux_update_need_reboot | bool and not ansible_role_linux_update_need_reboot_restarted.changed | bool %}
+			<li>System reboot is required. {%if not ansible_role_linux_update_automatic_reboot | bool %} (automatic reboot is disabled){% endif %}</li>
+		{% endif %}
+
+		{% if ansible_role_linux_update_servicerestart_stdout.rc is defined and ansible_role_linux_update_servicerestart_stdout.stdout_lines | length > 0 %}
+			<li>{{ ansible_role_linux_update_servicerestart_stdout.stdout_lines | length }} service(s) requires restart.{% if not ansible_role_linux_update_automatic_reboot_for_services | bool %} (automatic reboot for services is disabled){% endif %}</li>
+		{% endif %}
+		</ul>
+
+		{% if ansible_failed_task.name is defined %}
+			<h2>Update Automation for Linux encountered errors.</h2>
+			Errors encountered at playbook-task: {{ ansible_failed_task.name }}<br />
+		{% endif %}
+
+
+			</td>
+			</tr>
+			</tbody>
+			</table>
+			{% if ansible_role_linux_update_pre_command_index is defined  or ansible_role_linux_update_post_command_index is defined %}
+
+				<p style="page-break-after: always;">&nbsp;</p>
+
+				<table style="border-collapse: collapse; width: auto; margin-left: 2em;" border="1">
+				<tbody>
+				<tr>
+				<th style="width: 50%; border-style: hidden; text-align: left; vertical-align: top; font-family: Arial, Helvetica, sans-serif;">
+				<h2>Pre-update tasks</h2>
+				</th>
+				<th style="width: 50%; border-style: hidden;">&nbsp;</th>
+				</tr>
+				<tr>
+				<td style="width: 50%; border-style: hidden; text-align: left; vertical-align: top; border-right: 3px solid black; padding: 10px; font-family: Arial, Helvetica, sans-serif;">
+				<p>Pre-update tasks consists of 3 types of tasks (<em>commands</em>, <em>services</em> and <em>wait-for</em>), that will be performed before the actual update task. The pre-update tasks can consist of any number of combinations of the 3 task-types. Examples of pre-update tasks could be commands such as <em>a2ensite maintenance</em> to enable a maintenance site to be displayed for the Apache webserver during the update, or a service command to stop mariadb database server before the update task begins.<br />Please see sample configuration for the role for more examples.</p>
+				<p>
+				{{ ansible_role_linux_update_pre_tasks | length | int if ansible_role_linux_update_pre_tasks is defined else '0' }} pre-update tasks was defined:<br /><br />
+
+				{{ (ansible_role_linux_update_pre_tasks | selectattr("type", "equalto", "command" ) | list | count) if ansible_role_linux_update_pre_tasks is defined else '0' }} command tasks<br /> 
+				{{ (ansible_role_linux_update_pre_tasks | selectattr("type", "equalto", "service" ) | list | count) if ansible_role_linux_update_pre_tasks is defined else '0' }} service tasks<br /> 
+				{{ (ansible_role_linux_update_pre_tasks | selectattr("type", "equalto", "wait_for" ) | list | count) if ansible_role_linux_update_pre_tasks is defined else '0' }} wait-for tasks<br />
+				</p>
+				<p>
+				{% if ansible_failed_task.name is defined and ansible_role_linux_update_pre_command_index is defined and 'run pre update ' is in ansible_failed_task.name %}
+					{% if ansible_role_linux_update_pre_command_index is defined and ansible_role_linux_update_pre_command_index | int + 1 > 1 %}
+						Task 1 {% if ansible_role_linux_update_pre_command_index | int > 1  %} - {{ ansible_role_linux_update_pre_command_index }}{% endif %} was performed, execution failed at task {{ ansible_role_linux_update_pre_command_index | int + 1 }}.
+					{% else %}
+						Task execution failed at task {{ ansible_role_linux_update_pre_command_index | int + 1 if ansible_role_linux_update_pre_command_index is defined }}.
+					{% endif %}
+				{% else %}
+					{% if ansible_role_linux_update_pre_command_index is defined %}
+						{{ ansible_role_linux_update_pre_command_index | int + 1 }} of the {{ ansible_role_linux_update_pre_tasks | length | int if ansible_role_linux_update_pre_tasks is defined else '0' }} tasks was performed.
+					{% else %}
+						None of the tasks was performed.
+					{% endif %}
+				{% endif %}
+				</p>
+				</td>
+				<td style="width: 50%; border-style: hidden; text-align: left; vertical-align: top; border-left-style: solid; padding: 10px; font-family: Arial, Helvetica, sans-serif;">
+
+				{% if ansible_role_linux_update_pre_tasks is defined %}
+					{% for item in ansible_role_linux_update_pre_tasks %}
+							{% if ansible_failed_task.name is defined and ansible_role_linux_update_pre_command_index is defined and loop.index | int == ansible_role_linux_update_pre_command_index +1 | int and 'run pre update ' is in ansible_failed_task.name %}
+								<span style="color: #ff0000;">
+								&nbsp;&nbsp;<strong>The following task failed to execute:</strong><br />
+							{% else %}
+								<span style="color: #000000;">
+							{% endif %}
+							{% if item.name is defined %}
+								&nbsp;&nbsp;{{ loop.index }}. name: {{ item.name }}<br />
+							{% endif %}
+
+							{% if item.type is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; type: {{ item.type }}<br />
+							{% endif %}
+
+							{% if item.command is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; command: {{ item.command }}<br />
+							{% endif %}
+
+							{% if item.executable  is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; executable: {{ item.executable  }}<br />
+							{% endif %}
+
+							{% if item.creates  is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; creates: {{ item.creates  }}<br />
+							{% endif %}
+
+							{% if item.removes  is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; removes: {{ item.removes  }}<br />
+							{% endif %}
+
+							{% if item.chdir  is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; chdir: {{ item.chdir  }}<br />
+							{% endif %}
+
+							{% if item.service  is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; service: {{ item.service }}<br />
+							{% endif %}
+
+							{% if item.state  is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; state: {{ item.state }}<br />
+							{% endif %}
+
+							{% if item.active_connection_states  is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; active_connection_states: {{ item.active_connection_states }}<br />
+							{% endif %}
+
+							{% if item.connect_timeout  is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; connect_timeout: {{ item.connect_timeout }}<br />
+							{% endif %}
+
+							{% if item.delay  is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; delay: {{ item.delay }}<br />
+							{% endif %}
+
+							{% if item.exclude_hosts  is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; exclude_hosts: {{ item.exclude_hosts }}<br />
+							{% endif %}
+
+							{% if item.host  is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; host: {{ item.host }}<br />
+							{% endif %}
+
+							{% if item.msg  is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; msg: {{ item.msg }}<br />
+							{% endif %}
+
+							{% if item.path  is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; path: {{ item.path }}<br />
+							{% endif %}
+
+							{% if item.port  is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; port: {{ item.port }}<br />
+							{% endif %}
+
+							{% if item.search_regex is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; search_regex: {{ item.search_regex }}<br />
+							{% endif %}
+
+							{% if item.sleep is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; sleep: {{ item.sleep }}<br />
+							{% endif %}
+
+							{% if item.timeout is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; timeout: {{ item.timeout }}<br />
+							{% endif %}
+							</span>
+							<br />
+					{% endfor %}
+				{% endif %}
+				</td>
+				</tr>
+				</tbody>
+				</table>
+				<p>&nbsp;</p>
+				<p>&nbsp;</p>
+				<p>&nbsp;</p>
+
+				<table style="border-collapse: collapse; width: auto; height: 340px; margin-left: 2em;" border="1">
+				<tbody>
+				<tr style="height: 62px;">
+				<th style="width: 50%; height: 62px; border-style: hidden;">&nbsp;</th>
+				<th style="width: 50%; height: 62px; border-style: hidden; text-align: left; vertical-align: top;font-family: Arial, Helvetica, sans-serif;">
+				<h2>Post-update tasks</h2>
+				</th>
+				</tr>
+				<tr style="height: 278px;">
+				<td style="width: 50%; height: 278px; border-style: hidden; border-right: 3px solid black; text-align: left; vertical-align: top;padding: 10px;font-family: Arial, Helvetica, sans-serif;">
+
+				{% if ansible_role_linux_update_post_tasks is defined %}
+					{% for item in ansible_role_linux_update_post_tasks %}
+							{% if ansible_failed_task.name is defined and ansible_role_linux_update_post_command_index is defined and loop.index | int == ansible_role_linux_update_post_command_index +1 | int and 'run post update ' is in ansible_failed_task.name %}
+								<span style="color: #ff0000;">
+								&nbsp;&nbsp;<strong>The following task failed to execute:</strong><br />
+							{% else %}
+								<span style="color: #000000;">
+							{% endif %}
+							{% if item.name is defined %}
+								&nbsp;&nbsp;{{ loop.index }}. name: {{ item.name }}<br />
+							{% endif %}
+
+							{% if item.type is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; type: {{ item.type }}<br />
+							{% endif %}
+
+							{% if item.command is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; command: {{ item.command }}<br />
+							{% endif %}
+
+							{% if item.executable  is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; executable: {{ item.executable  }}<br />
+							{% endif %}
+
+							{% if item.creates  is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; creates: {{ item.creates  }}<br />
+							{% endif %}
+
+							{% if item.removes  is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; removes: {{ item.removes  }}<br />
+							{% endif %}
+
+							{% if item.chdir  is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; chdir: {{ item.chdir  }}<br />
+							{% endif %}
+
+							{% if item.service  is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; service: {{ item.service }}<br />
+							{% endif %}
+
+							{% if item.state  is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; state: {{ item.state }}<br />
+							{% endif %}
+
+							{% if item.active_connection_states  is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; active_connection_states: {{ item.active_connection_states }}<br />
+							{% endif %}
+
+							{% if item.connect_timeout  is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; connect_timeout: {{ item.connect_timeout }}<br />
+							{% endif %}
+
+							{% if item.delay  is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; delay: {{ item.delay }}<br />
+							{% endif %}
+
+							{% if item.exclude_hosts  is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; exclude_hosts: {{ item.exclude_hosts }}<br />
+							{% endif %}
+
+							{% if item.host  is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; host: {{ item.host }}<br />
+							{% endif %}
+
+							{% if item.msg  is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; msg: {{ item.msg }}<br />
+							{% endif %}
+
+							{% if item.path  is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; path: {{ item.path }}<br />
+							{% endif %}
+
+							{% if item.port  is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; port: {{ item.port }}<br />
+							{% endif %}
+
+							{% if item.search_regex is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; search_regex: {{ item.search_regex }}<br />
+							{% endif %}
+
+							{% if item.sleep is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; sleep: {{ item.sleep }}<br />
+							{% endif %}
+
+							{% if item.timeout is defined %}
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; timeout: {{ item.timeout }}<br />
+							{% endif %}
+							</span>
+							<br />
+					{% endfor %}
+				{% endif %}
+
+				</td>
+				<td style="width: 50%; height: 278px; border-style: hidden; border-left-style: solid; text-align: left; vertical-align: top;padding: 10px;font-family: Arial, Helvetica, sans-serif;">
+				<p>Post-update tasks consists of 3 types of tasks (<em>commands</em>, <em>services</em> and <em>wait-for</em>), that will be performed after the actual update task. The post-update tasks can consist of any number of combinations of the 3 task-types. Examples of post-update tasks could be commands such as <em>a2dissite maintenance</em> to disable a maintenance site that was displayed for the Apache webserver during the update, or a service command to start mariadb database server after the update task has completed.<br />Please see sample configuration for the role for more examples.</p>
+				<p>
+
+				{{ ansible_role_linux_update_post_tasks | length | int if ansible_role_linux_update_post_tasks is defined else '0' }} post-update tasks was defined:<br /><br />
+				{{ (ansible_role_linux_update_post_tasks | selectattr("type", "equalto", "command" ) | list | count) if ansible_role_linux_update_post_tasks is defined else '0' }} command tasks<br /> 
+				{{ (ansible_role_linux_update_post_tasks | selectattr("type", "equalto", "service" ) | list | count)  if ansible_role_linux_update_post_tasks is defined else '0' }} service tasks<br /> 
+				{{ (ansible_role_linux_update_post_tasks | selectattr("type", "equalto", "wait_for" ) | list | count)  if ansible_role_linux_update_post_tasks is defined else '0' }} wait-for tasks<br />
+				</p>
+				<p>
+				{% if ansible_failed_task.name is defined and ansible_role_linux_update_post_command_index is defined and 'run post update ' is in ansible_failed_task.name %}
+					{% if ansible_role_linux_update_post_command_index is defined and ansible_role_linux_update_post_command_index | int + 1 > 1 %}
+						Task 1 {% if ansible_role_linux_update_post_command_index | int > 1  %} - {{ ansible_role_linux_update_post_command_index }}{% endif %} was performed, execution failed at task {{ ansible_role_linux_update_post_command_index | int + 1 }}.
+					{% else %}
+						Task execution failed at task {{ ansible_role_linux_update_post_command_index | int + 1 if ansible_role_linux_update_post_command_index is defined }}.
+					{% endif %}
+				{% else %}
+					{% if ansible_role_linux_update_post_command_index is defined %}
+						{{ ansible_role_linux_update_post_command_index | int + 1 }} of the {{ ansible_role_linux_update_post_tasks | length | int if ansible_role_linux_update_post_tasks is defined else '0' }} tasks was performed.
+					{% else %}
+						None of the tasks was performed.
+					{% endif %}
+				{% endif %}
+				</p>
+				</td>
+				</tr>
+				</tbody>
+				</table>
+			{% endif %}
+
+			{% if ansible_role_linux_update_servicerestart_stdout.rc is defined and ansible_role_linux_update_servicerestart_stdout.stdout_lines | length > 0 %}
+				<p style="page-break-after: always;">&nbsp;<br /><br /></p>
+				<table style="border-collapse: collapse; width: auto; margin-left: 2em;" border="1">
+				<tbody>
+				<tr>
+				<th style="width: 50%; border-style: hidden; text-align: left; vertical-align: top;font-family: Arial, Helvetica, sans-serif;">
+				<h2>Services needing restart</h2>
+				</th>
+				<th style="width: 50%; border-style: hidden;">&nbsp;</th>
+				</tr>
+				<tr>
+				<td style="width: 50%; border-style: hidden; text-align: left; vertical-align: top;font-family: Arial, Helvetica, sans-serif; border-right: 3px solid black; padding: 10px;">
+				<p>After a system library have been updated to resolve security or other issues, the service(s) using that library will likely still be using the old flawed version until the service(s) is restarted. <br />This means that any issue that was fixed in the update is still present until a restart of the service(s) is performed. <br />The simplest way to ensure that all services is restarted is to reboot the system after any updates, although since that might not always be needed Update Automation for Linux tries to find out if a reboot or service restart is actually needed.</p>
+				<p>On the current system {{ ansible_role_linux_update_servicerestart_stdout.stdout_lines | length }} service(s) requires restart{% if  ansible_role_linux_update_need_reboot is defined and ansible_role_linux_update_need_reboot | bool and not ansible_role_linux_update_need_reboot_restarted.changed | bool %}, a system reboot is also required{% endif %}.</p>
+				<p>On a Linux system using systemd system services are typically restarted through the command <em>systemctl restart &lt;servicename&gt;.</em></p>
+				<p>For example:</p>
+				<p><em>sudo systemctl restart ssh</em></p>
+				</td>
+				<td style="width: 50%; border-style: hidden; text-align: left; vertical-align: top;font-family: Arial, Helvetica, sans-serif; border-left-style: solid; padding: 10px;">
+				{% for item in ansible_role_linux_update_servicerestart_stdout.stdout_lines %}
+					{{ item }}<br />
+				{% endfor %}
+				</td>
+				</tr>
+				</tbody>
+				</table>
+			{% endif %}
+
+			{% if ansible_role_linux_update_installed_updates is defined and ansible_role_linux_update_installed_updates | bool and ansible_role_linux_update_updatecount | int > 0 %}
+				<p style="page-break-after: always;">&nbsp;</p>
+				<table style="border-collapse: collapse; width: auto; margin-left: 2em;" border="1">
+				<tbody>
+				<tr>
+				<th style="width: 50%; border-style: hidden;">&nbsp;</th>
+				<th style="width: 50%; border-style: hidden; text-align: left; vertical-align: top;font-family: Arial, Helvetica, sans-serif;">
+				<h2>Updated packages</h2>
+				</th>
+				</tr>
+				<tr>
+				<td style="width: 50%; border-style: hidden; text-align: left; vertical-align: top;font-family: Arial, Helvetica, sans-serif; border-right: 3px solid black; padding: 10px;">
+
+				{% for item in ansible_role_linux_update_updates_dict | dict2items %}
+					{{ item.key }}-{{ item.value }}<br />
+				{% endfor %}
+				</td>
+				<td style="width: 50%; border-style: hidden; text-align: left; vertical-align: top;font-family: Arial, Helvetica, sans-serif; border-left-style: solid; padding: 10px;">
+				<p>The current update task updated {{ ansible_role_linux_update_updates_dict | length }} packages. <br />A list of the updated packages is listed in the column to the left.</p>
+				<p>Format is <em>packagename-version</em>.</p>
+				</td>
+				</tr>
+				</tbody>
+				</table>
+			{% endif %}
+	</body>
+</html>

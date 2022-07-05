@@ -1,0 +1,18 @@
+---
+
+ansible_role_linux_update_valid_categories:
+  - security
+
+ansible_role_linux_update_packages:
+  -  needrestart
+  -  util-linux
+
+ansible_role_linux_update_checkrestart_svc: "needrestart -l -b | sed -n 's/^NEEDRESTART-SVC. \\(.*\\)$/\\1/p'"
+
+ansible_role_linux_update_blockingproc_list:
+  - \/var\/cache\/apt
+  - \/var\/cache\/debconf
+  - \/var\/lib\/apt
+  - \/var\/lib\/dpkg
+  - \/var\/lib\/PackageKit
+  - \/var\/lib\/fwupd

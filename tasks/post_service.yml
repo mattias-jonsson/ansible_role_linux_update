@@ -1,0 +1,14 @@
+---
+
+- name: update fact with loop index
+  set_fact:
+    ansible_role_linux_update_post_command_index: '{{ ansible_role_linux_update_loop_index }}'
+
+- name: run post update service-commands on Linux
+  become: yes
+  become_user: "{{ item.user | default('root') }}"
+  ansible.builtin.service: 
+    name: '{{ item.service }}'
+    state: '{{ item.state | default(omit) }}'
+  when: ansible_system == 'Linux'
+  register: ansible_role_linux_update_post_service_result

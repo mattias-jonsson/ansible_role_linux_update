@@ -1,0 +1,24 @@
+---
+
+- name: update fact with loop index
+  set_fact:
+    ansible_role_linux_update_post_command_index: '{{ ansible_role_linux_update_loop_index }}'
+
+- name: run post update wait_for-commands on Linux
+  become: yes
+  become_user: "{{ item.user | default('root') }}"
+  ansible.builtin.wait_for: 
+    active_connection_states: '{{ item.active_connection_states | default(omit) }}'
+    connect_timeout: '{{ item.connect_timeout | default(omit) }}'
+    delay: '{{ item.delay | default(omit) }}'
+    exclude_hosts: '{{ item.exclude_hosts | default(omit) }}'
+    host: '{{ item.host | default(omit) }}'
+    msg: '{{ item.msg | default(omit) }}'
+    path: '{{ item.path | default(omit) }}'
+    port: '{{ item.port | default(omit) }}'
+    search_regex: '{{ item.search_regex | default(omit) }}'
+    sleep: '{{ item.sleep | default(omit) }}'
+    state: '{{ item.state | default(omit) }}'
+    timeout: '{{ item.timeout | default(omit) }}'
+  when: ansible_system == 'Linux'
+  register: ansible_role_linux_update_post_wait_for_result

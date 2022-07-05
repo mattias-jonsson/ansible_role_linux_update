@@ -1,0 +1,76 @@
+<h4>Overview:</h4>
+
+Hostname: {{ inventory_hostname }}<br />
+Operating system: {{ ansible_distribution }} {{ ansible_role_linux_update_distribution_version_post_update }} {% if ansible_role_linux_update_distribution_version_post_update != ansible_role_linux_update_distribution_version_pre_update %}(upgraded from: {{ ansible_role_linux_update_distribution_version_pre_update }}){% endif %}<br />
+Report created: {{ ansible_date_time.date }} {{ ansible_date_time.time }}<br />
+Patch Event ID: {{ ansible_role_linux_update_id }}<br />
+Update categories: {% if ansible_role_linux_update_categories | length %}{{ ansible_role_linux_update_categories | join(',')}}{% else %}No categories selected.{% endif %}<br />
+System uptime: {{ ansible_role_linux_update_uptime.stdout }}{% if ansible_role_linux_update_need_reboot_restarted is defined and ansible_role_linux_update_need_reboot_restarted.changed | bool  %} (automatic reboot was performed){% endif %}<br />
+Elapsed time: {{ ((((ansible_role_linux_update_stoptime| to_datetime).strftime('%s') | int ) - ((ansible_role_linux_update_starttime | to_datetime).strftime('%s') | int ))  / 60) | round(1,'common')}} minutes (started at {{ ansible_role_linux_update_starttime }} and ended at {{ ansible_role_linux_update_stoptime }}).<br />
+{% if ansible_role_linux_update_updates_dict is defined and ansible_role_linux_update_updates_dict | length | int > 0 %}
+    <br />
+    <strong>Performed tasks:</strong>
+    <ul>
+
+    1 check-update task was performed.<br />
+
+    {% if ansible_role_vsphere_snapshot_operations is defined %}
+        {{ ansible_role_vsphere_snapshot_operations | count }} VM snapshot operations ({{ ansible_role_vsphere_snapshot_operations | join(', ') }}).<br />
+    {% endif %}
+
+    {% if ansible_failed_task.name is defined and ansible_role_linux_update_pre_command_index is defined and 'run pre update ' is in ansible_failed_task.name %}
+        {% if ansible_role_linux_update_pre_command_index is defined and ansible_role_linux_update_pre_command_index | int + 1 > 1 %}
+            {{ ansible_role_linux_update_pre_command_index }} of {{ ansible_role_linux_update_pre_tasks | length }} pre-update tasks was performed, execution failed at task {{ ansible_role_linux_update_pre_command_index | int + 1 }}.<br />
+        {% else %}
+            0 of {{ ansible_role_linux_update_pre_tasks | length }} pre-update tasks was performed, execution failed at task {{ ansible_role_linux_update_pre_command_index | int + 1 }}.<br />
+        {% endif %}
+    {% else %}
+        {% if ansible_role_linux_update_pre_command_index is defined %}
+            {{ ansible_role_linux_update_pre_command_index | int + 1 }} of {{ ansible_role_linux_update_pre_tasks | length }} pre-update tasks was performed.<br />
+        {% endif %}
+    {% endif %}
+
+	{% if ansible_role_linux_update_installed_updates is defined and ansible_role_linux_update_installed_updates | bool and ansible_role_linux_update_updatecount | int > 0 %}
+		1 update task was performed ({{ ansible_role_linux_update_updates_dict | length }} updates installed).<br />
+	{% endif %}
+
+    {% if ansible_failed_task.name is defined and ansible_role_linux_update_post_command_index is defined and 'run post update ' is in ansible_failed_task.name %}
+        {% if ansible_role_linux_update_post_command_index is defined and ansible_role_linux_update_post_command_index | int + 1 > 1 %}
+            {{ ansible_role_linux_update_post_command_index }} of {{ ansible_role_linux_update_post_tasks | length }} post-update tasks was performed, execution failed at task {{ ansible_role_linux_update_post_command_index | int + 1 }}.<br />
+        {% else %}
+            0 of {{ ansible_role_linux_update_post_tasks | length }} post-update tasks was performed, execution failed at task {{ ansible_role_linux_update_post_command_index | int + 1 }}.<br />
+        {% endif %}
+    {% else %}
+        {% if ansible_role_linux_update_post_command_index is defined %}
+            {{ ansible_role_linux_update_post_command_index | int + 1 }} of {{ ansible_role_linux_update_post_tasks | length }} post-update tasks was performed.<br />
+        {% endif %}
+    {% endif %}
+
+    </ul>
+{% else %}
+    <strong>Performed tasks:</strong>
+    <ul>
+    1 check-update task was performed, no updates was found.<br />
+    </ul>
+{% endif %}
+
+{% if (ansible_role_linux_update_need_reboot is defined and ansible_role_linux_update_need_reboot | bool and not ansible_role_linux_update_need_reboot_restarted.changed | bool) or (ansible_role_linux_update_servicerestart_stdout.rc is defined and ansible_role_linux_update_servicerestart_stdout.stdout_lines | length > 0) %}
+	<strong>Warnings:</strong><br />
+{% endif %}
+<ul>
+{% if ansible_role_linux_update_need_reboot is defined and ansible_role_linux_update_need_reboot | bool and not ansible_role_linux_update_need_reboot_restarted.changed | bool %}
+	<li>System reboot is required. {%if not ansible_role_linux_update_automatic_reboot | bool %} (automatic reboot is disabled){% endif %}</li>
+{% endif %}
+
+{% if ansible_role_linux_update_servicerestart_stdout.rc is defined and ansible_role_linux_update_servicerestart_stdout.stdout_lines | length > 0 %}
+	<li>{{ ansible_role_linux_update_servicerestart_stdout.stdout_lines | length }} service(s) requires restart.{% if not ansible_role_linux_update_automatic_reboot_for_services | bool %} (automatic reboot for services is disabled){% endif %}</li>
+{% endif %}
+</ul>
+
+{% if ansible_failed_task.name is defined %}
+ 	<h4>Update Automation for Linux encountered errors.</h4>
+	Errors encountered at playbook-task: {{ ansible_failed_task.name }}<br />
+{% endif %}
+
+
+<br />Please see attached report for additional details.

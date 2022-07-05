@@ -1,0 +1,20 @@
+---
+
+ansible_role_linux_update_valid_categories:
+  - security
+  - bugfix
+
+ansible_role_linux_update_packages:
+  -  yum-utils
+  -  util-linux
+
+ansible_role_linux_update_checkrestart_sys: needs-restarting -r
+ansible_role_linux_update_checkrestart_svc: needs-restarting -s
+
+ansible_role_linux_update_blockingproc_list:
+  - \/var\/cache\/yum
+  - \/var\/lib\/PackageKit
+  - \/var\/lib\/rpm
+  - \/var\/lib\/yum
+  - \/var\/lib\/selinux
+  - \/var\/lib\/fwupd

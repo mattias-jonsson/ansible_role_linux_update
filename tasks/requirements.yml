@@ -1,0 +1,29 @@
+---
+
+- name: install package requirements
+  block:
+
+    - name: block for RedHat/Fedora/CentOS
+      block:
+
+        - name: install requirements on RedHat OSes
+          become: true
+          ansible.builtin.yum: 
+            name: '{{ ansible_role_linux_update_packages }}'
+            update_cache: yes
+            state: present
+
+      when: ansible_os_family == "RedHat"
+
+
+    - name: block for Debian/Ubuntu
+      block:
+
+        - name: install requirements on Debian OSes
+          become: true
+          ansible.builtin.apt: 
+            name: '{{ ansible_role_linux_update_packages }}'
+            update_cache: yes
+            state: present
+  
+      when: ansible_os_family == "Debian"

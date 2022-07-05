@@ -1,0 +1,113 @@
+---
+
+- name: check uptime
+  ansible.builtin.shell: uptime | cut -d ',' -f1 | sed -n 's/.*\sup\s\(.*\)$/\1/p'
+  register: ansible_role_linux_update_uptime
+  changed_when: false
+
+- name: set stop time as fact
+  set_fact: 
+    ansible_role_linux_update_stoptime: "{{ lookup('pipe','date +%Y-%m-%d_%H:%M:%S') | replace('_',' ') }}"
+  delegate_to: localhost
+
+- name: gather fact about ansible_distribution_version
+  ansible.builtin.setup:
+
+- name: set os version as a fact post update
+  set_fact:
+    ansible_role_linux_update_distribution_version_post_update: '{{ ansible_distribution_version }}'
+
+- name: check what services needs restarting
+  become: true
+  ansible.builtin.shell: "{{ ansible_role_linux_update_checkrestart_svc }}"
+  register: ansible_role_linux_update_servicerestart_stdout
+  changed_when: false
+  failed_when: ansible_role_linux_update_servicerestart_stdout.rc not in [ 0, 1 ]
+  
+
+
+- name: set fact of services needing restart
+  ansible.builtin.set_fact:
+    ansible_role_linux_update_services_needing_restart: '{{ ansible_role_linux_update_servicerestart_stdout }}'
+
+
+- name: block for snapshot info
+  block:
+
+    - name: create list of snapshot operations on VMware vSphere
+      set_fact:
+        ansible_role_vsphere_snapshot_operations: "{{ ansible_role_vsphere_snapshot_operations|default([]) + [item] }}"
+      loop:
+        - "{{ 'create' if ansible_role_vsphere_snapshot_created is defined and ansible_role_vsphere_snapshot_created | bool else '' }}"
+        - "{{ 'revert' if ansible_role_vsphere_snapshot_reverted is defined and ansible_role_vsphere_snapshot_reverted | bool else '' }}"
+        - "{{ 'remove' if ansible_role_vsphere_snapshot_removed is defined and ansible_role_vsphere_snapshot_removed | bool else '' }}"
+        - "{{ 'remove after revert' if ansible_role_vsphere_snapshot_removed_after_revert is defined and ansible_role_vsphere_snapshot_removed_after_revert | bool else '' }}"
+      when: item | length > 0
+
+
+- name: report handling
+  block:
+
+    - name: create reportingdirectory structure
+      become: false
+      ansible.builtin.file:
+        path: '{{ ansible_role_linux_update_reporting_path }}'
+        state: directory
+      delegate_to: localhost
+
+    - name: create a HTML report
+      become: false
+      ansible.builtin.template:
+        src: update_report_pdf.html.j2
+        dest: '{{ ansible_role_linux_update_reporting_path }}/update_report_{{ inventory_hostname }}_{{ ansible_role_linux_update_id }}.html'
+      delegate_to: localhost
+
+    - name: convert HTML report to PDF
+      become: false
+      ansible.builtin.shell:
+        cmd: cat '{{ ansible_role_linux_update_reporting_path }}/update_report_{{ inventory_hostname }}_{{ ansible_role_linux_update_id }}.html' | wkhtmltopdf -s A4 -O Portrait --enable-local-file-access - '{{ ansible_role_linux_update_reporting_path }}/update_report_{{ inventory_hostname }}_{{ ansible_role_linux_update_id }}.pdf' > /dev/null 2>&1
+      delegate_to: localhost
+
+    - name: remove HTML report
+      become: false
+      ansible.builtin.file:
+        path: '{{ item }}'
+        state: absent
+      with_items:
+        - '{{ ansible_role_linux_update_reporting_path }}/update_report_{{ inventory_hostname }}_{{ ansible_role_linux_update_id }}.html'
+      delegate_to: localhost
+  when: (ansible_role_linux_update_create_report is defined and ansible_role_linux_update_create_report | bool and ansible_role_linux_update_installed_updates is defined and ansible_role_linux_update_installed_updates | bool) or ansible_role_linux_update_create_report is defined and ansible_role_linux_update_create_report | bool and ansible_role_linux_update_installed_updates is not defined and not ansible_role_linux_update_omit_report_if_no_updates | bool or (ansible_failed_task.name is defined and ansible_role_linux_update_create_report is defined and ansible_role_linux_update_create_report | bool)
+
+
+- name: send report through email
+  become: false
+  community.general.mail:
+    host: "{{ ansible_role_linux_update_smtp_server }}"
+    port: "{{ ansible_role_linux_update_smtp_port }}"
+    to: "{{ ansible_role_linux_update_mail_to }}"
+    from: "{{ ansible_role_linux_update_mail_from }}"
+    subject: Update report for {{ inventory_hostname }}
+    body: "{{ lookup('template', 'email_template.html.j2') }}"
+    subtype: html
+    attach: '{{ ansible_role_linux_update_reporting_path }}/update_report_{{ inventory_hostname }}_{{ ansible_role_linux_update_id }}.pdf'
+  delegate_to: localhost
+  when: 
+    - ansible_role_linux_update_create_report is defined
+    - ansible_role_linux_update_send_email_report | bool
+
+- name: Microsoft Teams webhook handling
+  block:
+
+    - name: create message for Microsoft Teams webhook
+      ansible.builtin.set_fact:
+        ansible_role_linux_update_message: "{{ lookup('template', 'update_report_teams_webhook.j2') }}"
+
+    - name: send message to Microsoft Teams webhook
+      ansible.builtin.uri:
+        url: "{{ ansible_role_linux_update_webhook_msteams }}"
+        body: "{{ lookup('template', 'update_report_teams_webhook.j2') }}"
+        body_format: json
+        method: POST
+      delegate_to: localhost
+
+  when: ansible_role_linux_update_webhook_msteams | default('', true) | trim != ''
