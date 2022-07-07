@@ -1,7 +1,7 @@
 ---
 
 collections:
-  - name: community.general.mail
+  - community.general
 
 galaxy_info:
   author: Mattias Jonsson
