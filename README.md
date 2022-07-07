@@ -125,24 +125,24 @@ Example Playbook
         ansible_role_linux_update_send_email_report: false
 
         ansible_role_linux_update_pre_tasks:
-        - name: wait for port 22 to be present
+          - name: wait for port 22 to be present
             type: wait_for
             port: 22
             state: present
-        - name: run a command, this will succeeed
+          - name: run a command, this will succeeed
             type: command
             command: touch /somefile1
-        - name: wait for a file to be absent
+          - name: wait for a file to be absent
             type: wait_for
             path: /this_will_be_removed_after_some_command
             state: absent
-        - name: restart crond
+          - name: restart crond
             type: service
             service: cron
             state: restarted
 
         ansible_role_linux_update_post_tasks:
-        - name: run a command, this will succeeed
+          - name: run a command, this will succeeed
             type: command
             command: touch /somefile2
 
